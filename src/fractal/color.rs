@@ -1,7 +1,7 @@
 //==============================================================================
 // Open crates and libraries
 //==============================================================================
-use image::{Bgra, ImageBuffer};
+use fractal::definitions::*;
 
 use std::cmp::min;
 use std::cmp::max;
@@ -37,9 +37,9 @@ pub fn azul_gradient(n : usize, re : f64, im : f64) -> (u8, u8, u8, u8) {
 // Fractal Coloring
 //==============================================================================
 
-pub fn color_fractal(fractal : &Vec<(usize, f64, f64)>) -> Vec<u8> {
+pub fn color_fractal(fractal : &RawFrac) -> FracImage {
   let mut colored = Vec::with_capacity(fractal.len());
-  fn add_colored_pixel(vec : &mut Vec<u8>, data : (usize, f64, f64)) {
+  fn add_colored_pixel(vec : &mut FracImage, data : FracPoint) {
     let (n, re, im) = data;
     let (b, g, r, a) = azul_gradient(n, re, im);
     vec.push(b);

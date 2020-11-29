@@ -11,7 +11,7 @@ mod fractal;
 
 use iced::Sandbox;
 use iced::Settings;
-use ui::app::Counter as app;
+use ui::app::MainWindow as app;
 
 //==============================================================================
 // Run

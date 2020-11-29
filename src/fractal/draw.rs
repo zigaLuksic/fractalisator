@@ -3,19 +3,7 @@
 //==============================================================================
 use rayon::prelude::*;
 
-use fractal::definitions::{Field, FracArgs};
-
-//==============================================================================
-// Temporary
-//==============================================================================
-
-pub const DEFAULT_FIELD : Field = Field{ 
-  pixel_size : 2000, radius : 2.0,
-  re_center : 0.0 , im_center : 0.0};
-
-pub const DEFAULT_FRAC_ARGS : FracArgs = FracArgs{
-  steps : 256, steps_off : 0, bound : 3, z_const : (-0.96656, 0.1225)};
-
+use fractal::definitions::*;
 
 //==============================================================================
 // Pixels to complex
@@ -38,7 +26,7 @@ pub fn point_to_complex (field : &Field, i : usize, j : usize) -> (f64, f64) {
 // Fractal generators
 //==============================================================================
 #[allow(dead_code)]
-fn julia_iterate (z : (f64, f64), args : &FracArgs) -> (usize, f64, f64) {
+fn julia_iterate (z : (f64, f64), args : &FracArgs) -> FracPoint {
   // Loop mutables
   let (z_re, z_im) = z;
   let mut step = 0;
@@ -59,7 +47,7 @@ fn julia_iterate (z : (f64, f64), args : &FracArgs) -> (usize, f64, f64) {
 
 
 #[allow(dead_code)]
-fn mandelbrot_iterate (z : (f64, f64), args : &FracArgs) -> (usize, f64, f64) {
+fn mandelbrot_iterate (z : (f64, f64), args : &FracArgs) -> FracPoint {
   // Loop mutables
   let mut step = 0;
   let mut re = 0.0;
@@ -83,35 +71,29 @@ fn mandelbrot_iterate (z : (f64, f64), args : &FracArgs) -> (usize, f64, f64) {
 //==============================================================================
 
 fn compute_row(
-  row : &mut [(usize, f64, f64)],
+  row : &mut [FracPoint],
   row_num : usize,
-//   field : Field,
-//   args : FracArgs,
+  args : FracArgs,
 ){
-  let field = DEFAULT_FIELD;
-  let args = DEFAULT_FRAC_ARGS;
   let iter_fun = mandelbrot_iterate;
-  for col_num in 0..field.pixel_size{
-    let z = point_to_complex(&field, col_num, row_num);
+  for col_num in 0..args.field.pixel_size{
+    let z = point_to_complex(&args.field, col_num, row_num);
     let (n, re, im) = iter_fun(z, &args);
-    let n_off = if n > args.steps_off {n - args.steps_off} else {0};
-    row[col_num] = (n_off, re, im);
+    row[col_num] = (n, re, im);
   }
 }
 
-pub fn compute_fractal()//field : Field, args : FracArgs) 
--> Vec<(usize, f64, f64)>
+pub fn compute_fractal(args : FracArgs) 
+-> RawFrac
 {
-  let field = DEFAULT_FIELD;
-  // let args = DEFAULT_FRAC_ARGS;
-  let px_size = field.pixel_size;
+  let px_size = args.field.pixel_size;
   let mut matrix = vec![(0, 0., 0.); px_size * px_size];
   {// Mutable borrow scope
   let rows : Vec<(usize, &mut [(usize, f64, f64)])> = 
   matrix.chunks_mut(px_size).enumerate().collect();
 
   rows.into_par_iter()
-  .for_each(|(row_num, row)|{compute_row(row, row_num)}); //, field, args
+  .for_each(|(row_num, row)|{compute_row(row, row_num, args)});
   }
 
   matrix
