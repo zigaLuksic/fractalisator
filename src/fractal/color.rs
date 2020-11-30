@@ -6,6 +6,9 @@ use fractal::definitions::*;
 use std::cmp::min;
 use std::cmp::max;
 
+use resize::Pixel::RGBA;
+use resize::Type::Lanczos3;
+
 //==============================================================================
 // Color Functions
 //==============================================================================
@@ -183,3 +186,10 @@ pub fn color_fractal(fractal : &RawFrac, max_steps : usize, color : Color) -> Fr
   colored
   }
 
+pub fn supersample(image : &FracImage, from : usize, to : usize) -> FracImage {
+  let mut resized = vec![0;to*to*4];
+  // Create reusable instance.
+  let mut resizer = resize::new(from, from, to, to, RGBA, Lanczos3);
+  resizer.resize(image, &mut resized);
+  resized
+}

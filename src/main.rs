@@ -5,6 +5,7 @@ extern crate iced;
 extern crate image;
 extern crate rayon;
 extern crate num;
+extern crate resize;
 
 mod ui;
 mod fractal;

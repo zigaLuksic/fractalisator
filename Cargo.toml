@@ -1,13 +1,14 @@
 [package]
 
 name = "fractalisator"
-version = "0.3.0"
+version = "3.0.0"
 authors = [ "Ziga Luksic <ziga.luksic@live.com>" ]
 publish = false
 
 [dependencies]
-iced = {version = "3.0", features = ["debug", "image"]}
+iced = {version = "0.2", features = ["debug", "image"]}
 rand = "0.7"
 rayon = "1.5.0"
 num = "0.3.1"
 image = "0.23.12"
+resize = "0.5.5"

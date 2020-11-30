@@ -68,10 +68,12 @@ impl Default for FracArgs{
 #[derive(Copy, Clone)]
 pub struct ImageArgs{
   pub color : Color,
+  pub better_supersampling : bool,
   }
 
 impl Default for ImageArgs{
   fn default() -> Self {ImageArgs{
     color : Color::Azul,
+    better_supersampling : true
   }}
 }

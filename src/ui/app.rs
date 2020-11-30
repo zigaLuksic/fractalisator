@@ -184,10 +184,17 @@ impl Sandbox for MainWindow {
   }
 
   fn view(&mut self) -> Element<Message> {
-    let frac_image = self.image_state.image.clone();
-    let pix_size = self.frac_state.args.field.pixel_size as u32;
     let image_handle = 
-      image::Handle::from_pixels(pix_size, pix_size, frac_image);
+      if self.image_state.args.better_supersampling {
+        let pix_size = self.frac_state.args.field.pixel_size;
+        let frac_image = 
+          color::supersample(&self.image_state.image, pix_size, 1000);
+        image::Handle::from_pixels(1000, 1000, frac_image)
+      } else {
+        let pix_size = self.frac_state.args.field.pixel_size;
+        let frac_image = self.image_state.image.clone();
+        image::Handle::from_pixels(pix_size as u32, pix_size as u32, frac_image)
+      };
     let image = 
       Image::new(image_handle)
       .width(Length::Units(1000)).height(Length::Units(1000));
