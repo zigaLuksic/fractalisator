@@ -29,8 +29,11 @@ pub struct ImageState{
 }
 
 impl Default for ImageState{
-  fn default() -> Self { ImageState{
-    args : ImageArgs{ steps_off : 0 },
-    image : color::color_fractal(&FractalState::default().fractal)
-  }}
+  fn default() -> Self { 
+    let default_frac = FractalState::default().fractal;
+    let default_steps = FractalState::default().args.steps;
+    ImageState{
+      args : ImageArgs{ steps_off : 0 },
+      image : color::color_fractal(&default_frac, default_steps)}
+  }
 }

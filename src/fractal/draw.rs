@@ -65,20 +65,45 @@ fn mandelbrot_iterate (z : (f64, f64), args : &FracArgs) -> FracPoint {
   (step, re, im)
 }
 
+fn mandelbrot_iterate2 (
+  z : (f64, f64), f : impl Fn(f64, f64, f64, f64) -> (f64, f64), args : &FracArgs) 
+  -> FracPoint {
+  // Loop mutables
+  let mut step = 0;
+  let mut re = 0.0;
+  let mut im = 0.0;
+  // Loop constants
+  let (const_re, const_im) = z;
+  let boundary = (args.bound * args.bound) as f64;
+
+  while step < args.steps && (re * re + im * im) < boundary {
+    let (new_re, new_im) = f(re, im, const_re, const_im);
+    re = new_re;
+    im = new_im;
+    step += 1 
+  }
+  (step, re, im)
+}
 
 //==============================================================================
 // Image generators
 //==============================================================================
 
+fn test_square(re : f64, im : f64, const_re : f64, const_im : f64) -> (f64, f64) {
+    let new_re = (re * re) - (im * im) + const_re;
+    let new_im = (2.0 * re * im) + const_im;
+    (new_re, new_im)
+  }
+
 fn compute_row(
   row : &mut [FracPoint],
   row_num : usize,
   args : FracArgs,
+  iter_fun : impl Fn(f64, f64) -> (usize, f64, f64),
 ){
-  let iter_fun = mandelbrot_iterate;
   for col_num in 0..args.field.pixel_size{
-    let z = point_to_complex(&args.field, col_num, row_num);
-    let (n, re, im) = iter_fun(z, &args);
+    let (re, im) = point_to_complex(&args.field, col_num, row_num);
+    let (n, re, im) = iter_fun(re, im);
     row[col_num] = (n, re, im);
   }
 }
@@ -92,8 +117,9 @@ pub fn compute_fractal(args : FracArgs)
   let rows : Vec<(usize, &mut [(usize, f64, f64)])> = 
   matrix.chunks_mut(px_size).enumerate().collect();
 
+  let iter_fun = |re, im|{mandelbrot_iterate2((re, im), test_square, &args)};
   rows.into_par_iter()
-  .for_each(|(row_num, row)|{compute_row(row, row_num, args)});
+  .for_each(|(row_num, row)|{compute_row(row, row_num, args, iter_fun)});
   }
 
   matrix

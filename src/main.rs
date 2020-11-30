@@ -18,5 +18,5 @@ use ui::app::MainWindow as app;
 //==============================================================================
 
 pub fn main() -> iced::Result {
-    app::run(Settings::default())
+    app::run(Settings{antialiasing: true, ..Settings::default()})
 }

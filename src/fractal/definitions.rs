@@ -8,7 +8,7 @@ pub struct Field {
 
 impl Default for Field {
   fn default() -> Self { Field{ 
-      pixel_size : 2000, radius : 2.0,
+      pixel_size : 1000, radius : 2.0,
       re_center : 0.0 , im_center : 0.0}
   }
 }
