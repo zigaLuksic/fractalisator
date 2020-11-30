@@ -1,4 +1,8 @@
 
+//==============================================================================
+// Field
+//==============================================================================
+
 #[derive(Copy, Clone)]
 pub struct Field { 
   pub pixel_size : usize,
@@ -13,26 +17,61 @@ impl Default for Field {
   }
 }
 
+//==============================================================================
+// Custom types and enums
+//==============================================================================
+
+pub type FracPoint = (usize, f64, f64);
+
+pub type RawFrac = Vec<FracPoint>;
+
+pub type FracImage = Vec<u8>;
+
+#[derive (Clone, Copy, Debug)]
+pub enum IterationStyle { Julia, Mandelbrot }
+
+#[derive (Clone, Copy, Debug)]
+pub enum IteratorKind { Square, Cube, Ship }
+
+// Should be generalised
+#[derive (Clone, Copy, Debug)]
+pub enum Color {Azul, Sunset, Sky }
+
+//==============================================================================
+// Generation arguments
+//==============================================================================
+
 #[derive(Copy, Clone)]
 pub struct FracArgs{
   pub field : Field,
-  pub z_const : (f64, f64), 
-  pub bound : usize, 
+  pub c_im : f64, 
+  pub c_re : f64, 
+  pub iteration_bound : usize, 
   pub steps : usize,
+  pub iteration_style : IterationStyle,
+  pub iterator_kind : IteratorKind,
   }
 
 impl Default for FracArgs{
-  fn default() -> Self { FracArgs{
-    field : Field::default(), steps : 256, 
-    bound : 3, z_const : (-0.96656, 0.1225)}
-}}
+  fn default() -> Self {FracArgs{
+    field : Field::default(), 
+    steps : 256, 
+    iteration_bound : 10, 
+    c_im : 0.,
+    c_re : 0.,
+    iteration_style : IterationStyle::Mandelbrot,
+    iterator_kind : IteratorKind::Square,
+  }}
+}
 
-
-pub type FracPoint = (usize, f64, f64);
-pub type RawFrac = Vec<FracPoint>;
-pub type FracImage = Vec<u8>;
 
 #[derive(Copy, Clone)]
 pub struct ImageArgs{
-  pub steps_off : usize,
+  pub color : Color,
   }
+
+impl Default for ImageArgs{
+  fn default() -> Self {ImageArgs{
+    color : Color::Azul,
+  }}
+}

@@ -26,55 +26,62 @@ pub fn point_to_complex (field : &Field, i : usize, j : usize) -> (f64, f64) {
 // Fractal generators
 //==============================================================================
 #[allow(dead_code)]
-fn julia_iterate (z : (f64, f64), args : &FracArgs) -> FracPoint {
+fn julia_iterate (
+  z : (f64, f64), 
+  f : impl Fn(f64, f64, f64, f64) -> (f64, f64), 
+  args : &FracArgs) 
+-> FracPoint {
   // Loop mutables
   let (z_re, z_im) = z;
   let mut step = 0;
   let mut re = z_re;
   let mut im = z_im;
   // Loop constants
-  let (const_re, const_im) = args.z_const;
-  let boundary = (args.bound * args.bound) as f64;
+  let boundary = (args.iteration_bound * args.iteration_bound) as f64;
 
   while step < args.steps && (re * re + im * im) < boundary {
-    let new_re = (re * re) - (im * im) + const_re;
-    im = (2.0 * re * im) + const_im;
+    let (new_re, new_im) = f(re, im, args.c_re, args.c_im);
     re = new_re;
+    im = new_im;
     step += 1 
   }
   (step, re, im)
 }
 
 
-#[allow(dead_code)]
-fn mandelbrot_iterate (z : (f64, f64), args : &FracArgs) -> FracPoint {
+// Old version with hardcoded square iteratior
+
+// fn mandelbrot_iterate (z : (f64, f64), args : &FracArgs) -> FracPoint {
+//   // Loop mutables
+//   let mut step = 0;
+//   let mut re = 0.0;
+//   let mut im = 0.0;
+//   // Loop constants
+//   let (const_re, const_im) = z;
+//   let boundary = (args.bound * args.bound) as f64;
+
+//   while step < args.steps && (re * re + im * im) < boundary {
+//     let new_re = (re * re) - (im * im) + const_re;
+//     im = (2.0 * re * im) + const_im;
+//     re = new_re;
+//     step += 1 
+//   }
+//   (step, re, im)
+// }
+
+
+fn mandelbrot_iterate (
+  z : (f64, f64), 
+  f : impl Fn(f64, f64, f64, f64) -> (f64, f64), 
+  args : &FracArgs) 
+-> FracPoint {
   // Loop mutables
   let mut step = 0;
   let mut re = 0.0;
   let mut im = 0.0;
   // Loop constants
   let (const_re, const_im) = z;
-  let boundary = (args.bound * args.bound) as f64;
-
-  while step < args.steps && (re * re + im * im) < boundary {
-    let new_re = (re * re) - (im * im) + const_re;
-    im = (2.0 * re * im) + const_im;
-    re = new_re;
-    step += 1 
-  }
-  (step, re, im)
-}
-
-fn mandelbrot_iterate2 (
-  z : (f64, f64), f : impl Fn(f64, f64, f64, f64) -> (f64, f64), args : &FracArgs) 
-  -> FracPoint {
-  // Loop mutables
-  let mut step = 0;
-  let mut re = 0.0;
-  let mut im = 0.0;
-  // Loop constants
-  let (const_re, const_im) = z;
-  let boundary = (args.bound * args.bound) as f64;
+  let boundary = (args.iteration_bound * args.iteration_bound) as f64;
 
   while step < args.steps && (re * re + im * im) < boundary {
     let (new_re, new_im) = f(re, im, const_re, const_im);
@@ -89,11 +96,26 @@ fn mandelbrot_iterate2 (
 // Image generators
 //==============================================================================
 
-fn test_square(re : f64, im : f64, const_re : f64, const_im : f64) -> (f64, f64) {
-    let new_re = (re * re) - (im * im) + const_re;
-    let new_im = (2.0 * re * im) + const_im;
+fn square_iterator(re : f64, im : f64, c_re : f64, c_im : f64) -> (f64, f64) {
+    let new_re = (re * re) - (im * im) + c_re;
+    let new_im = (2.0 * re * im) + c_im;
     (new_re, new_im)
   }
+
+fn cube_iterator(re : f64, im : f64, c_re : f64, c_im : f64) -> (f64, f64) {
+    let new_re = (re * re * re) - 3.0 * (re * im * im) + c_re;
+    let new_im = (3.0 * re * re * im - im * im * im) + c_im;
+    (new_re, new_im)
+  }
+
+fn ship_iterator(re : f64, im : f64, c_re : f64, c_im : f64) -> (f64, f64) {
+    let im = im.abs();
+    let re = re.abs();
+    let new_re = (re * re) - (im * im) + c_re;
+    let new_im = (2.0 * re * im) + c_im;
+    (new_re, new_im)
+  }
+
 
 fn compute_row(
   row : &mut [FracPoint],
@@ -113,11 +135,20 @@ pub fn compute_fractal(args : FracArgs)
 {
   let px_size = args.field.pixel_size;
   let mut matrix = vec![(0, 0., 0.); px_size * px_size];
+  let iteration_fn = match args.iteration_style {
+    IterationStyle::Julia => {julia_iterate}
+    IterationStyle::Mandelbrot => {mandelbrot_iterate}
+  };
+  let iterator_fn = match args.iterator_kind {
+    IteratorKind::Square => {square_iterator}
+    IteratorKind::Cube => {cube_iterator}
+    IteratorKind::Ship => {ship_iterator}
+  };
   {// Mutable borrow scope
   let rows : Vec<(usize, &mut [(usize, f64, f64)])> = 
   matrix.chunks_mut(px_size).enumerate().collect();
 
-  let iter_fun = |re, im|{mandelbrot_iterate2((re, im), test_square, &args)};
+  let iter_fun = |re, im|{iteration_fn((re, im), iterator_fn, &args)};
   rows.into_par_iter()
   .for_each(|(row_num, row)|{compute_row(row, row_num, args, iter_fun)});
   }
