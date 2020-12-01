@@ -35,8 +35,9 @@ impl Default for ImageState{
     let frac = default_frac_state.fractal;
     let steps = default_frac_state.args.steps;
     let img_args = ImageArgs::default();
+    let gradient = img_args.gradient.clone();
     ImageState{
       args : img_args,
-      image : color::color_fractal(&frac, steps, img_args.color)}
+      image : color::color_fractal(&frac, steps, gradient)}
   }
 }

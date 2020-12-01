@@ -6,7 +6,7 @@ use iced::{button, Button};
 use iced::{Align, Row, Column, Container, Element, Sandbox};
 use iced::{HorizontalAlignment, Length};
 
-use fractal::definitions::{Color, IterationStyle, IteratorKind};
+use fractal::definitions::{Gradient, IterationStyle, IteratorKind};
 use fractal::color;
 use fractal::draw;
 
@@ -35,7 +35,7 @@ pub struct BasicButtons {
   pixel_down_button : button::State,
   steps_up_button : button::State,
   steps_down_button : button::State,
-  change_color_button : button::State,
+  // change_color_button : button::State,
   change_iteration_button : button::State,
   change_iterator_button : button::State,
   re_up_button : button::State,
@@ -59,7 +59,7 @@ pub enum Message {
   PixelDown,
   StepsUp,
   StepsDown,
-  ChangeColor,
+  // ChangeColor,
   ChangeIteration,
   ChangeIterator,
   ReUp,
@@ -83,9 +83,10 @@ impl MainWindow {
 
   fn redraw_only_image(&mut self) {
     let frac = &self.frac_state.fractal;
+    let gradient = self.image_state.args.gradient.clone();
     let image = 
       color::color_fractal(
-        frac, self.frac_state.args.steps, self.image_state.args.color);
+        frac, self.frac_state.args.steps, gradient);
     self.image_state.image = image
   }
 }
@@ -111,19 +112,19 @@ impl Sandbox for MainWindow {
       }
       Message::GoLeft => {
         let dx = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.re_center -= dx
+        self.frac_state.args.field.center_re -= dx
       }
       Message::GoRight => {
         let dx = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.re_center += dx
+        self.frac_state.args.field.center_re += dx
       }
       Message::GoUp => {
         let dy = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.im_center -= dy
+        self.frac_state.args.field.center_im -= dy
       }
       Message::GoDown => {
         let dy = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.im_center += dy
+        self.frac_state.args.field.center_im += dy
       }
       Message::PixelUp => {
         self.frac_state.args.field.pixel_size *= 2
@@ -141,13 +142,14 @@ impl Sandbox for MainWindow {
         let new_steps = steps-20;
         self.frac_state.args.steps = new_steps;
       }
-      Message::ChangeColor => {
-        match self.image_state.args.color {
-          Color::Azul => {self.image_state.args.color = Color::Sunset}
-          Color::Sunset => {self.image_state.args.color = Color::Sky}
-          Color::Sky => {self.image_state.args.color = Color::Azul}
-        }
-      }
+      // Message::ChangeColor => {
+      //   match self.image_state.args.color {
+      //     Color::Azul => {self.image_state.args.color = Color::Sunset}
+      //     Color::Sunset => {self.image_state.args.color = Color::Sky}
+      //     Color::Sky => {self.image_state.args.color = Color::Gaia}
+      //     Color::Gaia => {self.image_state.args.color = Color::Azul}
+      //   }
+      // }
       Message::ChangeIteration => {
         match self.frac_state.args.iteration_style {
           IterationStyle::Mandelbrot => 
@@ -185,10 +187,10 @@ impl Sandbox for MainWindow {
 
   fn view(&mut self) -> Element<Message> {
     let image_handle = 
-      if self.image_state.args.better_supersampling {
+      if self.image_state.args.better_resize {
         let pix_size = self.frac_state.args.field.pixel_size;
         let frac_image = 
-          color::supersample(&self.image_state.image, pix_size, 1000);
+          color::resize_fractal_image(&self.image_state.image, pix_size, 1000);
         image::Handle::from_pixels(1000, 1000, frac_image)
       } else {
         let pix_size = self.frac_state.args.field.pixel_size;
@@ -257,11 +259,11 @@ impl BasicButtons {
             button(&mut self.steps_down_button,
               "Less Steps", Message::StepsDown) )
         )
-        .push( Row::new().padding(row_pad).spacing(row_space)
-          .push( 
-            button(&mut self.change_color_button,
-              "Change Color", Message::ChangeColor) )
-        )
+        // .push( Row::new().padding(row_pad).spacing(row_space)
+        //   .push( 
+        //     button(&mut self.change_color_button,
+        //       "Change Color", Message::ChangeColor) )
+        // )
         .push( Row::new().padding(row_pad).spacing(row_space)
           .push( 
             button(&mut self.change_iteration_button,
