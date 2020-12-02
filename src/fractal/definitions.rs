@@ -74,8 +74,13 @@ pub struct Gradient {
   pub smooth : bool,
 }
 
-impl Default for Gradient {
-  fn default() -> Self {
+// Color Presets (These might be only temporarily here)
+
+pub enum GradientPreset { Azul, Svarog, Emperor, Gaia }
+
+impl Gradient {
+
+  pub fn azul_gradient() -> Gradient {
     Gradient {
       start_color : (0, 0, 0, 255),
       peaks : vec!(
@@ -84,9 +89,51 @@ impl Default for Gradient {
         ),
       end_color : (0, 0, 0, 255),
       smooth : true,
-    }
-  }
+    }}
+
+  pub fn svarog_gradient() -> Gradient {
+    Gradient {
+      start_color : (0, 0, 0, 255),
+      peaks : vec!(
+        ColorPeak{bgra: (0, 0, 0, 255), at: 0.2},
+        ColorPeak{bgra: (30, 60, 200, 255), at: 0.4},
+        ColorPeak{bgra: (45, 180, 220, 255), at: 0.6},
+        ColorPeak{bgra: (75, 210, 250, 255), at: 0.8},
+        ),
+      end_color : (255, 255, 255, 255),
+      smooth : true,
+    }}
+
+  pub fn emperor_gradient() -> Gradient {
+    Gradient {
+      start_color : (0, 0, 0, 255),
+      peaks : vec!(
+        ColorPeak{bgra: (0, 0, 0, 255), at: 0.2},
+        ColorPeak{bgra: (160, 30, 80, 255), at: 0.4},
+        ColorPeak{bgra: (200, 40, 100, 255), at: 0.6},
+        ColorPeak{bgra: (75, 210, 250, 255), at: 0.8},
+        ),
+      end_color : (255, 255, 255, 255),
+      smooth : true,
+    }}
+
+  pub fn gaia_gradient() -> Gradient {
+    Gradient {
+      start_color : (0, 0, 0, 255),
+      peaks : vec!(
+        ColorPeak{bgra: (80, 80, 80, 255), at: 0.1},
+        ColorPeak{bgra: (140, 180, 60, 255), at: 0.5},
+        ColorPeak{bgra: (110, 230, 100, 255), at: 0.7},
+        ColorPeak{bgra: (50, 210, 250, 255), at: 0.9},
+        ),
+      end_color : (255, 255, 255, 255),
+      smooth : true,
+    }}
 }
+
+impl Default for Gradient {
+    fn default() -> Self { Gradient::azul_gradient() }
+  }
 
 //==============================================================================
 // Fractal and Image arguments

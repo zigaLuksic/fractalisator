@@ -22,15 +22,12 @@ pub fn color_with_gradient(
   let mut peaks = peaks.to_vec();
   peaks.sort_by(|a, b| a.at.partial_cmp(&b.at).unwrap());
 
-  // Adjust type
-  let max_steps = max_steps as f64;
-
   // Definition of gradient
   move |n, re, im|{
 
-    // Apply smoothing
+    // Apply smoothing (only works for points which crossed iter_bound)
     let n =
-      if smooth {
+      if smooth && n < max_steps{
         let abs_val = re * re + im * im;
         let smooth1 = abs_val.ln() / f64::ln(2.);
         let smooth2 = smooth1.ln() / f64::ln(2.);
@@ -69,6 +66,7 @@ pub fn color_with_gradient(
     let r = ((r1 * (1. - f) + r2 * f).round() as isize).min(255).max(0);
     let a = ((a1 * (1. - f) + a2 * f).round() as isize).min(255).max(0);
 
+    // println!("n:{} x:{} i:{} f:{} bgra:{},{},{},{}", n, x, i, f, b, g, r, a);
     (b as u8, g as u8, r as u8, a as u8)
   }
 

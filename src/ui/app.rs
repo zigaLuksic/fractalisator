@@ -6,7 +6,7 @@ use iced::{button, Button};
 use iced::{Align, Row, Column, Container, Element, Sandbox};
 use iced::{HorizontalAlignment, Length};
 
-use fractal::definitions::{Gradient, IterationStyle, IteratorKind};
+use fractal::definitions::{Gradient, GradientPreset, IterationStyle, IteratorKind};
 use fractal::color;
 use fractal::draw;
 
@@ -35,7 +35,7 @@ pub struct BasicButtons {
   pixel_down_button : button::State,
   steps_up_button : button::State,
   steps_down_button : button::State,
-  // change_color_button : button::State,
+  change_color_button : button::State,
   change_iteration_button : button::State,
   change_iterator_button : button::State,
   re_up_button : button::State,
@@ -47,27 +47,27 @@ pub struct BasicButtons {
 //==============================================================================
 // Messages
 //==============================================================================
+
 #[derive(Debug, Clone, Copy)]
-pub enum Message {
-  ZoomIn,
-  ZoomOut,
-  GoLeft,
-  GoRight,
-  GoUp,
-  GoDown,
-  PixelUp,
-  PixelDown,
-  StepsUp,
-  StepsDown,
-  // ChangeColor,
-  ChangeIteration,
-  ChangeIterator,
-  ReUp,
-  ReDown,
-  ImUp,
-  ImDown,
+pub enum FracMessage {
+  ZoomIn, ZoomOut,
+  GoLeft, GoRight, GoUp, GoDown,
+  PixelUp, PixelDown,
+  StepsUp, StepsDown,
+  ChangeIteration, ChangeIterator,
+  ReUp, ReDown, ImUp, ImDown,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ImageMessage {
+  ChangeColor,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Message {
+  Frac(FracMessage),
+  Image(ImageMessage),
+}
 
 //==============================================================================
 // Implementation
@@ -104,85 +104,103 @@ impl Sandbox for MainWindow {
 
   fn update(&mut self, message: Message) {
     match message {
-      Message::ZoomIn => {
-        self.frac_state.args.field.radius *= 0.8;
+      Message::Frac(fm) => {
+        match fm {
+          FracMessage::ZoomIn => {
+            self.frac_state.args.field.radius *= 0.8;
+          }
+          FracMessage::ZoomOut => {
+            self.frac_state.args.field.radius *= 1.2;
+          }
+          FracMessage::GoLeft => {
+            let dx = self.frac_state.args.field.radius * 0.2;
+            self.frac_state.args.field.center_re -= dx
+          }
+          FracMessage::GoRight => {
+            let dx = self.frac_state.args.field.radius * 0.2;
+            self.frac_state.args.field.center_re += dx
+          }
+          FracMessage::GoUp => {
+            let dy = self.frac_state.args.field.radius * 0.2;
+            self.frac_state.args.field.center_im -= dy
+          }
+          FracMessage::GoDown => {
+            let dy = self.frac_state.args.field.radius * 0.2;
+            self.frac_state.args.field.center_im += dy
+          }
+          FracMessage::PixelUp => {
+            self.frac_state.args.field.pixel_size *= 2
+          }
+          FracMessage::PixelDown => {
+            let pix_size = self.frac_state.args.field.pixel_size;
+            let new_size = std::cmp::max(pix_size / 2, 128);
+            self.frac_state.args.field.pixel_size = new_size
+          }
+          FracMessage::StepsUp => {
+            self.frac_state.args.steps += 20
+          }
+          FracMessage::StepsDown => {
+            let steps = std::cmp::max(self.frac_state.args.steps, 21);
+            let new_steps = steps-20;
+            self.frac_state.args.steps = new_steps;
+          }
+          FracMessage::ChangeIteration => {
+            match self.frac_state.args.iteration_style {
+              IterationStyle::Mandelbrot => 
+                {self.frac_state.args.iteration_style = IterationStyle::Julia}
+              IterationStyle::Julia => 
+                {self.frac_state.args.iteration_style = IterationStyle::Mandelbrot}
+            }
+          }
+          FracMessage::ChangeIterator => {
+            match self.frac_state.args.iterator_kind {
+              IteratorKind::Square => 
+                {self.frac_state.args.iterator_kind = IteratorKind::Cube}
+              IteratorKind::Cube => 
+                {self.frac_state.args.iterator_kind = IteratorKind::Ship}
+              IteratorKind::Ship => 
+                {self.frac_state.args.iterator_kind = IteratorKind::Square}
+            }
+          }
+          FracMessage::ReUp => {
+            self.frac_state.args.c_re += 0.01
+          }
+          FracMessage::ReDown => {
+            self.frac_state.args.c_re -= 0.01
+          }
+          FracMessage::ImUp => {
+            self.frac_state.args.c_im += 0.01
+          }
+          FracMessage::ImDown => {
+            self.frac_state.args.c_im -= 0.01
+          }
+        };
+        // Since the fractal arguments changed, we have to update the raw and
+        // colored fractal
+        self.redraw_frac(true)
       }
-      Message::ZoomOut => {
-        self.frac_state.args.field.radius *= 1.2;
+      Message::Image(im) => {
+        match im {
+          ImageMessage::ChangeColor => {
+            match self.image_state.current_preset {
+              GradientPreset::Azul => {
+                self.image_state.args.gradient = Gradient::svarog_gradient();
+                self.image_state.current_preset = GradientPreset::Svarog }
+              GradientPreset::Svarog => {
+                self.image_state.args.gradient = Gradient::emperor_gradient();
+                self.image_state.current_preset = GradientPreset::Emperor }
+              GradientPreset::Emperor => {
+                self.image_state.args.gradient = Gradient::gaia_gradient();
+                self.image_state.current_preset = GradientPreset::Gaia }
+              GradientPreset::Gaia => {
+                self.image_state.args.gradient = Gradient::azul_gradient();
+                self.image_state.current_preset = GradientPreset::Azul }
+            }
+          }
+        };
+        self.redraw_only_image()
       }
-      Message::GoLeft => {
-        let dx = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.center_re -= dx
-      }
-      Message::GoRight => {
-        let dx = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.center_re += dx
-      }
-      Message::GoUp => {
-        let dy = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.center_im -= dy
-      }
-      Message::GoDown => {
-        let dy = self.frac_state.args.field.radius * 0.2;
-        self.frac_state.args.field.center_im += dy
-      }
-      Message::PixelUp => {
-        self.frac_state.args.field.pixel_size *= 2
-      }
-      Message::PixelDown => {
-        let pix_size = self.frac_state.args.field.pixel_size;
-        let new_size = std::cmp::max(pix_size / 2, 128);
-        self.frac_state.args.field.pixel_size = new_size
-      }
-      Message::StepsUp => {
-        self.frac_state.args.steps += 20
-      }
-      Message::StepsDown => {
-        let steps = std::cmp::max(self.frac_state.args.steps, 21);
-        let new_steps = steps-20;
-        self.frac_state.args.steps = new_steps;
-      }
-      // Message::ChangeColor => {
-      //   match self.image_state.args.color {
-      //     Color::Azul => {self.image_state.args.color = Color::Sunset}
-      //     Color::Sunset => {self.image_state.args.color = Color::Sky}
-      //     Color::Sky => {self.image_state.args.color = Color::Gaia}
-      //     Color::Gaia => {self.image_state.args.color = Color::Azul}
-      //   }
-      // }
-      Message::ChangeIteration => {
-        match self.frac_state.args.iteration_style {
-          IterationStyle::Mandelbrot => 
-            {self.frac_state.args.iteration_style = IterationStyle::Julia}
-          IterationStyle::Julia => 
-            {self.frac_state.args.iteration_style = IterationStyle::Mandelbrot}
-        }
-      }
-      Message::ChangeIterator => {
-        match self.frac_state.args.iterator_kind {
-          IteratorKind::Square => 
-            {self.frac_state.args.iterator_kind = IteratorKind::Cube}
-          IteratorKind::Cube => 
-            {self.frac_state.args.iterator_kind = IteratorKind::Ship}
-          IteratorKind::Ship => 
-            {self.frac_state.args.iterator_kind = IteratorKind::Square}
-        }
-      }
-      Message::ReUp => {
-        self.frac_state.args.c_re += 0.01
-      }
-      Message::ReDown => {
-        self.frac_state.args.c_re -= 0.01
-      }
-      Message::ImUp => {
-        self.frac_state.args.c_im += 0.01
-      }
-      Message::ImDown => {
-        self.frac_state.args.c_im -= 0.01
-      }
-    };
-    // This should ideally only happen when needed
-    self.redraw_frac(true)
+    }
   }
 
   fn view(&mut self) -> Element<Message> {
@@ -234,49 +252,63 @@ impl BasicButtons {
       Column::new().padding(10).spacing(10)
         .align_items(Align::Center)
         .push( Row::new().padding(row_pad).spacing(row_space)
-          .push( button(&mut self.zoom_in_button, "+", Message::ZoomIn) )
-          .push( button(&mut self.zoom_out_button, "-", Message::ZoomOut) )
+          .push( button(&mut self.zoom_in_button, "+", 
+            Message::Frac(FracMessage::ZoomIn)) )
+          .push( button(&mut self.zoom_out_button, "-", 
+            Message::Frac(FracMessage::ZoomOut)) )
         )
         .push( Row::new().padding(row_pad).spacing(row_space)
-          .push( button(&mut self.go_left_button, "◄", Message::GoLeft) )
-          .push( button(&mut self.go_up_button, "▲", Message::GoUp) )
-          .push( button(&mut self.go_down_button, "▼", Message::GoDown) )
-          .push( button(&mut self.go_right_button, "►", Message::GoRight) )
+          .push( button(&mut self.go_left_button, "◄", 
+            Message::Frac(FracMessage::GoLeft)) )
+          .push( button(&mut self.go_up_button, "▲", 
+            Message::Frac(FracMessage::GoUp)) )
+          .push( button(&mut self.go_down_button, "▼", 
+            Message::Frac(FracMessage::GoDown)) )
+          .push( button(&mut self.go_right_button, "►", 
+            Message::Frac(FracMessage::GoRight)) )
         )
         .push( Row::new().padding(row_pad).spacing(row_space)
           .push( 
             button(&mut self.pixel_up_button, 
-              "More Detailed", Message::PixelUp) )
+              "More Detailed",
+              Message::Frac(FracMessage::PixelUp)) )
           .push( 
             button(&mut self.pixel_down_button, 
-              "Less Detailed", Message::PixelDown) )
+              "Less Detailed",
+              Message::Frac(FracMessage::PixelDown)) )
         )
         .push( Row::new().padding(row_pad).spacing(row_space)
           .push( 
             button(&mut self.steps_up_button,
-              "More Steps", Message::StepsUp) )
+              "More Steps", Message::Frac(FracMessage::StepsUp)) )
           .push( 
             button(&mut self.steps_down_button,
-              "Less Steps", Message::StepsDown) )
+              "Less Steps", Message::Frac(FracMessage::StepsDown)) )
         )
-        // .push( Row::new().padding(row_pad).spacing(row_space)
-        //   .push( 
-        //     button(&mut self.change_color_button,
-        //       "Change Color", Message::ChangeColor) )
-        // )
+        .push( Row::new().padding(row_pad).spacing(row_space)
+          .push( 
+            button(&mut self.change_color_button,
+              "Change Color", Message::Image(ImageMessage::ChangeColor)) )
+        )
         .push( Row::new().padding(row_pad).spacing(row_space)
           .push( 
             button(&mut self.change_iteration_button,
-              "Change Iteration", Message::ChangeIteration) )
+              "Change Iteration",
+              Message::Frac(FracMessage::ChangeIteration)) )
           .push( 
             button(&mut self.change_iterator_button,
-              "Change Iterator", Message::ChangeIterator) )
+              "Change Iterator",
+              Message::Frac(FracMessage::ChangeIterator)) )
         )
         .push( Row::new().padding(row_pad).spacing(row_space)
-          .push( button(&mut self.re_up_button, "re+", Message::ReUp) )
-          .push( button(&mut self.re_down_button, "re-", Message::ReDown) )
-          .push( button(&mut self.im_up_button, "im+", Message::ImUp) )
-          .push( button(&mut self.im_down_button, "im-", Message::ImDown) )
+          .push( button(&mut self.re_up_button, "re+",
+          Message::Frac(FracMessage::ReUp)) )
+          .push( button(&mut self.re_down_button, "re-",
+          Message::Frac(FracMessage::ReDown)) )
+          .push( button(&mut self.im_up_button, "im+",
+          Message::Frac(FracMessage::ImUp)) )
+          .push( button(&mut self.im_down_button, "im-",
+          Message::Frac(FracMessage::ImDown)) )
         )
       ;
     Container::new(buttons).width(Length::Fill).height(Length::Fill).into()
