@@ -25,17 +25,26 @@ pub struct MainWindow {
 
 #[derive(Default)]
 pub struct BasicButtons {
+  navigation_buttons : NavigationButtons,
+  fractal_adjustment_buttons : FractalAdjustmentButtons,
+  image_adjustment_buttons : ImageAdjustmentButtons,
+  change_color_button : button::State, // temporary
+}
+
+#[derive(Default)]
+pub struct NavigationButtons {
   zoom_in_button : button::State,
   zoom_out_button : button::State,
   go_left_button : button::State,
   go_right_button : button::State,
   go_up_button : button::State,
   go_down_button : button::State,
-  pixel_up_button : button::State,
-  pixel_down_button : button::State,
+}
+
+#[derive(Default)]
+pub struct FractalAdjustmentButtons {
   steps_up_button : button::State,
   steps_down_button : button::State,
-  change_color_button : button::State,
   change_iteration_button : button::State,
   change_iterator_button : button::State,
   re_up_button : button::State,
@@ -44,6 +53,11 @@ pub struct BasicButtons {
   im_down_button : button::State,
 }
 
+#[derive(Default)]
+pub struct ImageAdjustmentButtons {
+  pixel_up_button : button::State,
+  pixel_down_button : button::State, 
+}
 //==============================================================================
 // Messages
 //==============================================================================
@@ -221,15 +235,46 @@ impl Sandbox for MainWindow {
     let basic_buttons = self.basic_buttons.view();
     Row::new().padding(10)
       .align_items(Align::Center)
-      .push(basic_buttons)
-      .push(image)
+      .push(basic_buttons.width(Length::Units(500)))
+      .push(Column::new().padding(10).spacing(10).push(image))
       .into()
   }
 }
 
 // Basic Buttons
 
-impl BasicButtons {
+impl<'a> BasicButtons {
+
+  fn view(&'a mut self) -> Column<'a, Message> {
+    let row_space = 10;
+    let row_pad = 10;
+
+    let button = |state, label, message| {
+      Button::new(
+          state,
+          Text::new(label)
+              .width(Length::Fill)
+              .horizontal_alignment(HorizontalAlignment::Center)
+              .size(24),
+      )
+      .width(Length::Fill)
+      .padding(8)
+      .on_press(message)
+      };
+
+      Column::new().padding(10).spacing(10)
+        .push( self.navigation_buttons.view() )
+        .push( self.image_adjustment_buttons.view() )
+        .push( self.fractal_adjustment_buttons.view() )
+        .push( Row::new().padding(row_pad).spacing(row_space)
+          .push( 
+            button(&mut self.change_color_button,
+              "Change Color", Message::Image(ImageMessage::ChangeColor)) )
+        )
+  }
+}
+
+impl<'a> NavigationButtons {
 
   fn view(&mut self) -> Element<Message> {
     let row_space = 10;
@@ -267,16 +312,66 @@ impl BasicButtons {
           .push( button(&mut self.go_right_button, "►", 
             Message::Frac(FracMessage::GoRight)) )
         )
-        .push( Row::new().padding(row_pad).spacing(row_space)
-          .push( 
-            button(&mut self.pixel_up_button, 
-              "More Detailed",
-              Message::Frac(FracMessage::PixelUp)) )
-          .push( 
-            button(&mut self.pixel_down_button, 
-              "Less Detailed",
-              Message::Frac(FracMessage::PixelDown)) )
-        )
+      ;
+    Container::new(buttons).into()
+  }
+}
+
+impl<'a> ImageAdjustmentButtons {
+
+  fn view(&mut self) -> Element<Message> {
+
+    let button = |state, label, message| {
+      Button::new(
+          state,
+          Text::new(label)
+              .width(Length::Fill)
+              .horizontal_alignment(HorizontalAlignment::Center)
+              .size(24),
+      )
+      .width(Length::Fill)
+      .padding(8)
+      .on_press(message)
+      };
+
+    let buttons =
+      Row::new().padding(10).spacing(10)
+        .align_items(Align::Center)
+        .push( 
+          button(&mut self.pixel_up_button, 
+            "More Detailed",
+            Message::Frac(FracMessage::PixelUp)) )
+        .push( 
+          button(&mut self.pixel_down_button, 
+            "Less Detailed",
+            Message::Frac(FracMessage::PixelDown)) )
+      ;
+    Container::new(buttons).into()
+  }
+}
+
+impl<'a> FractalAdjustmentButtons {
+
+  fn view(&mut self) -> Element<Message> {
+    let row_space = 10;
+    let row_pad = 10;
+
+    let button = |state, label, message| {
+      Button::new(
+          state,
+          Text::new(label)
+              .width(Length::Fill)
+              .horizontal_alignment(HorizontalAlignment::Center)
+              .size(24),
+      )
+      .width(Length::Fill)
+      .padding(8)
+      .on_press(message)
+      };
+
+    let buttons =
+      Column::new().padding(10).spacing(10)
+        .align_items(Align::Center)
         .push( Row::new().padding(row_pad).spacing(row_space)
           .push( 
             button(&mut self.steps_up_button,
@@ -284,11 +379,6 @@ impl BasicButtons {
           .push( 
             button(&mut self.steps_down_button,
               "Less Steps", Message::Frac(FracMessage::StepsDown)) )
-        )
-        .push( Row::new().padding(row_pad).spacing(row_space)
-          .push( 
-            button(&mut self.change_color_button,
-              "Change Color", Message::Image(ImageMessage::ChangeColor)) )
         )
         .push( Row::new().padding(row_pad).spacing(row_space)
           .push( 
@@ -311,6 +401,6 @@ impl BasicButtons {
           Message::Frac(FracMessage::ImDown)) )
         )
       ;
-    Container::new(buttons).width(Length::Fill).height(Length::Fill).into()
+    Container::new(buttons).into()
   }
 }
