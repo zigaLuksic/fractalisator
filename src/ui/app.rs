@@ -7,6 +7,7 @@ use iced::{Align, Row, Column, Container, Element, Sandbox};
 use iced::{HorizontalAlignment, Length};
 
 use fractal::definitions::{Gradient, GradientPreset, IterationStyle, IteratorKind};
+use fractal::definitions::{FracArgs};
 use fractal::color;
 use fractal::draw;
 
@@ -232,7 +233,7 @@ impl Sandbox for MainWindow {
     let image = 
       Image::new(image_handle)
       .width(Length::Units(1000)).height(Length::Units(1000));
-    let basic_buttons = self.basic_buttons.view();
+    let basic_buttons = self.basic_buttons.view(self.frac_state.args);
     Row::new().padding(10)
       .align_items(Align::Center)
       .push(basic_buttons.width(Length::Units(500)))
@@ -245,7 +246,7 @@ impl Sandbox for MainWindow {
 
 impl<'a> BasicButtons {
 
-  fn view(&'a mut self) -> Column<'a, Message> {
+  fn view(&'a mut self, frac_args : FracArgs) -> Column<'a, Message> {
     let row_space = 10;
     let row_pad = 10;
 
@@ -270,6 +271,26 @@ impl<'a> BasicButtons {
           .push( 
             button(&mut self.change_color_button,
               "Change Color", Message::Image(ImageMessage::ChangeColor)) )
+        )
+        .push( Row::new().padding(row_pad).spacing(row_space)
+          .push(
+            Text::new(format!("Constant: {:.10} + {:.10} i", frac_args.c_re, frac_args.c_im)))
+        )
+        .push( Row::new().padding(row_pad).spacing(row_space)
+          .push(
+            Text::new(format!("Center: {:.10} + {:.10} i", frac_args.field.center_im, frac_args.field.center_re)))
+        )
+        .push( Row::new().padding(row_pad).spacing(row_space)
+          .push(
+            Text::new(format!("Radius: {:.10}", frac_args.field.radius)))
+        )
+        .push( Row::new().padding(row_pad).spacing(row_space)
+          .push(
+            Text::new(format!("Steps: {}", frac_args.steps)))
+        )
+        .push( Row::new().padding(row_pad).spacing(row_space)
+          .push(
+            Text::new(format!("Pixel width: {}", frac_args.field.pixel_size)))
         )
   }
 }
