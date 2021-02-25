@@ -46,12 +46,42 @@ pub type FracImage = Vec<u8>;
 
 /// States whether the fractal calculation uses the Julia or Mandelbrot style
 /// of point iteration.
-#[derive (Clone, Copy, Debug)]
+#[derive (Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IterationStyle { Julia, Mandelbrot }
 
+impl std::fmt::Display for IterationStyle {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    write!(f, "{}", match self {
+     IterationStyle::Julia => "Julia style", 
+     IterationStyle::Mandelbrot => "Mandelbrot style", 
+    })
+  }
+}
+
+pub static ALL_ITERATIONS : &[IterationStyle] = &[
+  IterationStyle::Julia,
+  IterationStyle::Mandelbrot,
+  ];
+
 /// Describes the complex function used in iteration when calculating fractals.
-#[derive (Clone, Copy, Debug)]
+#[derive (Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IteratorKind { Square, Cube, Ship }
+
+impl std::fmt::Display for IteratorKind {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    write!(f, "{}", match self {
+     IteratorKind::Square => "z ^ 2", 
+     IteratorKind::Cube => "z ^ 3", 
+     IteratorKind::Ship => "(|a| + i|b|) ^ 2", 
+    })
+  }
+}
+
+pub static ALL_ITERATORS : &[IteratorKind] = &[
+  IteratorKind::Square,
+  IteratorKind::Cube,
+  IteratorKind::Ship,
+  ];
 
 // Used to describe gradients. `bgra` specifies the color in BGRA `u8` format
 // and `at` is a float (expected between 0 and 1) specifying where the gradient
