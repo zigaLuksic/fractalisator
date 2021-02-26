@@ -103,6 +103,12 @@ fn cube_iterator(re : f64, im : f64, c_re : f64, c_im : f64) -> (f64, f64) {
     (new_re, new_im)
   }
 
+/// Iteration function `f(z, c) = z ^ -2 + c`
+fn inverse_iterator(re : f64, im : f64, c_re : f64, c_im : f64) -> (f64, f64) {
+  let size = (re * re + im * im).max(f64::MIN_POSITIVE);
+  square_iterator(re / size, im / size, c_re, c_im)
+}
+
 /// Iteration function for the famous Burning Ship fractal. The function is
 /// `f((re, im), c) = (|re|, |im|) ^ 2 + c`.
 fn ship_iterator(re : f64, im : f64, c_re : f64, c_im : f64) -> (f64, f64) {
@@ -144,6 +150,7 @@ pub fn compute_fractal(args : FracArgs) -> RawFrac {
   let iterator_fn = match args.iterator_kind {
     IteratorKind::Square => {square_iterator}
     IteratorKind::Cube => {cube_iterator}
+    IteratorKind::Inverse => {inverse_iterator}
     IteratorKind::Ship => {ship_iterator}
   };
   

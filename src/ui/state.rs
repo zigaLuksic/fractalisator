@@ -45,7 +45,7 @@ impl Default for ImageState{
     // create
     ImageState{
       args : img_args,
-      current_preset : GradientPreset::Azul,
+      current_preset : DEFAULT_GRADIENT_PRESET,
       image : color::color_fractal(&frac, steps, gradient)}
   }
 }

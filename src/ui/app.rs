@@ -2,20 +2,28 @@
 // Open crates and libraries
 //==============================================================================
 use iced::{button, Button};
+use iced::{image, Image, Text};
 use iced::{pick_list, PickList};
 use iced::{slider, Slider};
-use iced::{image, Image, Text};
 use iced::{Align, Column, Container, Element, Row, Sandbox};
-use iced::{HorizontalAlignment, Length};
+use iced::{HorizontalAlignment, Length, Color, Vector, Background};
 
 use fractal::color;
 use fractal::definitions;
 use fractal::definitions::FracArgs;
-use fractal::definitions::{
-  Gradient, GradientPreset, IterationStyle, IteratorKind};
+use fractal::definitions::{Gradient, GradientPreset, IterationStyle, IteratorKind};
 use fractal::draw;
 
 use ui::state::*;
+
+//==============================================================================
+// Application layout definitions
+//==============================================================================
+#[derive(Copy, Clone)]
+pub enum Layout {
+  FracOptions,
+  ColorOptions,
+}
 
 //==============================================================================
 // States of application parts
@@ -24,16 +32,31 @@ use ui::state::*;
 pub struct MainWindow {
   frac_state: FractalState,
   image_state: ImageState,
-  basic_buttons: BasicButtons,
+  app_state: AppState,
+  frac_layout: FracLayout,
+  color_layout: ColorLayout,
+  to_frac_layout_button: button::State,
+  to_color_layout_button: button::State,
+}
+
+pub struct AppState {
+  layout: Layout,
   log_increment_size: f64,
 }
 
+impl Default for AppState {
+  fn default() -> Self {
+    AppState {
+      layout: Layout::FracOptions,
+      log_increment_size: -6.,
+    }
+  }
+}
+
 #[derive(Default)]
-pub struct BasicButtons {
+pub struct FracLayout {
   navigation_buttons: NavigationButtons,
   fractal_adjustment_buttons: FractalAdjustmentButtons,
-  image_adjustment_buttons: ImageAdjustmentButtons,
-  change_color_button: button::State, // temporary
 }
 
 #[derive(Default)]
@@ -48,8 +71,6 @@ pub struct NavigationButtons {
 
 #[derive(Default)]
 pub struct FractalAdjustmentButtons {
-  steps_up_button: button::State,
-  steps_down_button: button::State,
   change_iteration_list: pick_list::State<IterationStyle>,
   change_iterator_list: pick_list::State<IteratorKind>,
   increment_slider: slider::State,
@@ -64,30 +85,101 @@ pub struct ImageAdjustmentButtons {
   pixel_up_button: button::State,
   pixel_down_button: button::State,
 }
+
+#[derive(Default)]
+pub struct ColorLayout {
+  steps_up_button: button::State,
+  steps_down_button: button::State,
+  image_adjustment_buttons: ImageAdjustmentButtons,
+  change_color_button: button::State, // temporary
+}
+
 //==============================================================================
 // Messages
 //==============================================================================
 
 #[derive(Debug, Clone, Copy)]
-pub enum FracMessage {
-  ZoomIn, ZoomOut,
-  GoLeft, GoRight, GoUp, GoDown,
-  PixelUp, PixelDown,
-  StepsUp, StepsDown,
-  IterationPicked(IterationStyle), IteratorPicked(IteratorKind),
-  ChangeIncrementSize(f32),
-  ReUp(f64), ReDown(f64), ImUp(f64), ImDown(f64),
+pub enum FracMsg {
+  ZoomIn,
+  ZoomOut,
+  GoLeft,
+  GoRight,
+  GoUp,
+  GoDown,
+  PixelUp,
+  PixelDown,
+  StepsUp,
+  StepsDown,
+  IterationPicked(IterationStyle),
+  IteratorPicked(IteratorKind),
+  ReUp(f64),
+  ReDown(f64),
+  ImUp(f64),
+  ImDown(f64),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ImageMessage {
+pub enum ImgMsg {
   ChangeColor,
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum AppMsg {
+  ChangeToFracLayout,
+  ChangeToColorLayout,
+  ChangeIncrementSize(f32),
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum Message {
-  Frac(FracMessage),
-  Image(ImageMessage),
+  Frac(FracMsg),
+  Image(ImgMsg),
+  App(AppMsg),
+}
+
+//==============================================================================
+// Auxiliary Definitions
+//==============================================================================
+
+fn button<'a, Message: Clone>(state: &'a mut button::State, label: &str) -> Button<'a, Message> {
+  Button::new(
+    state,
+    Text::new(label)
+      .width(Length::Fill)
+      .horizontal_alignment(HorizontalAlignment::Center)
+      .size(24),
+  )
+  .padding(8)
+  .width(Length::Fill)
+}
+
+
+pub enum ButtonStyle {
+  Primary,
+  // Secondary,
+}
+
+impl button::StyleSheet for ButtonStyle {
+  fn active(&self) -> button::Style {
+      button::Style {
+          background: Some(Background::Color(match self {
+              ButtonStyle::Primary => Color::from_rgb(0.11, 0.42, 0.87),
+              // Button::Secondary => Color::from_rgb(0.5, 0.5, 0.5),
+          })),
+          border_radius: 12.0,
+          shadow_offset: Vector::new(1.0, 1.0),
+          text_color: Color::from_rgb8(0xEE, 0xEE, 0xEE),
+          ..button::Style::default()
+      }
+  }
+
+  fn hovered(&self) -> button::Style {
+      button::Style {
+          text_color: Color::WHITE,
+          shadow_offset: Vector::new(1.0, 2.0),
+          ..self.active()
+      }
+  }
 }
 
 //==============================================================================
@@ -107,9 +199,13 @@ impl MainWindow {
   fn redraw_only_image(&mut self) {
     let frac = &self.frac_state.fractal;
     let gradient = self.image_state.args.gradient.clone();
-    let image = 
-      color::color_fractal(frac, self.frac_state.args.steps, gradient);
-    self.image_state.image = image
+    let image = color::color_fractal(frac, self.frac_state.args.steps, gradient);
+    if self.image_state.args.better_resize {
+      let pix_size = self.frac_state.args.field.pixel_size;
+      self.image_state.image = color::resize_fractal_image(&image, pix_size, 1000);
+    } else {
+      self.image_state.image = image.clone();
+    }
   }
 }
 
@@ -128,57 +224,46 @@ impl Sandbox for MainWindow {
     match message {
       Message::Frac(fm) => {
         match fm {
-          FracMessage::ZoomIn => {
+          FracMsg::ZoomIn => {
             self.frac_state.args.field.radius *= 0.8;
           }
-          FracMessage::ZoomOut => {
+          FracMsg::ZoomOut => {
             self.frac_state.args.field.radius *= 1.2;
           }
-          FracMessage::GoLeft => {
+          FracMsg::GoLeft => {
             let dx = self.frac_state.args.field.radius * 0.2;
             self.frac_state.args.field.center_re -= dx
           }
-          FracMessage::GoRight => {
+          FracMsg::GoRight => {
             let dx = self.frac_state.args.field.radius * 0.2;
             self.frac_state.args.field.center_re += dx
           }
-          FracMessage::GoUp => {
+          FracMsg::GoUp => {
             let dy = self.frac_state.args.field.radius * 0.2;
             self.frac_state.args.field.center_im -= dy
           }
-          FracMessage::GoDown => {
+          FracMsg::GoDown => {
             let dy = self.frac_state.args.field.radius * 0.2;
             self.frac_state.args.field.center_im += dy
           }
-          FracMessage::PixelUp => self.frac_state.args.field.pixel_size *= 2,
-          FracMessage::PixelDown => {
+          FracMsg::PixelUp => self.frac_state.args.field.pixel_size *= 2,
+          FracMsg::PixelDown => {
             let pix_size = self.frac_state.args.field.pixel_size;
             let new_size = std::cmp::max(pix_size / 2, 128);
             self.frac_state.args.field.pixel_size = new_size
           }
-          FracMessage::StepsUp => self.frac_state.args.steps += 20,
-          FracMessage::StepsDown => {
+          FracMsg::StepsUp => self.frac_state.args.steps += 20,
+          FracMsg::StepsDown => {
             let steps = std::cmp::max(self.frac_state.args.steps, 21);
             let new_steps = steps - 20;
             self.frac_state.args.steps = new_steps;
           }
-          FracMessage::IterationPicked(kind) => {
-            self.frac_state.args.iteration_style = kind
-          },
-          FracMessage::IteratorPicked(kind) => {
-            self.frac_state.args.iterator_kind = kind
-          },
-          FracMessage::ChangeIncrementSize(val) => {
-            self.log_increment_size = val as f64
-          },
-          FracMessage::ReUp(log_incr) =>
-            self.frac_state.args.c_re += (2.0 as f64).powf(log_incr),
-          FracMessage::ReDown(log_incr) =>
-            self.frac_state.args.c_re -= (2.0 as f64).powf(log_incr),
-          FracMessage::ImUp(log_incr) =>
-            self.frac_state.args.c_im += (2.0 as f64).powf(log_incr),
-          FracMessage::ImDown(log_incr) =>
-            self.frac_state.args.c_im -= (2.0 as f64).powf(log_incr),
+          FracMsg::IterationPicked(kind) => self.frac_state.args.iteration_style = kind,
+          FracMsg::IteratorPicked(kind) => self.frac_state.args.iterator_kind = kind,
+          FracMsg::ReUp(log_incr) => self.frac_state.args.c_re += (2.0 as f64).powf(log_incr),
+          FracMsg::ReDown(log_incr) => self.frac_state.args.c_re -= (2.0 as f64).powf(log_incr),
+          FracMsg::ImUp(log_incr) => self.frac_state.args.c_im += (2.0 as f64).powf(log_incr),
+          FracMsg::ImDown(log_incr) => self.frac_state.args.c_im -= (2.0 as f64).powf(log_incr),
         };
         // Since the fractal arguments changed, we have to update the raw and
         // colored fractal
@@ -186,7 +271,7 @@ impl Sandbox for MainWindow {
       }
       Message::Image(im) => {
         match im {
-          ImageMessage::ChangeColor => match self.image_state.current_preset {
+          ImgMsg::ChangeColor => match self.image_state.current_preset {
             GradientPreset::Azul => {
               self.image_state.args.gradient = Gradient::svarog_gradient();
               self.image_state.current_preset = GradientPreset::Svarog
@@ -207,75 +292,77 @@ impl Sandbox for MainWindow {
         };
         self.redraw_only_image()
       }
+      Message::App(ap) => match ap {
+        AppMsg::ChangeIncrementSize(val) => self.app_state.log_increment_size = val as f64,
+        AppMsg::ChangeToColorLayout => self.app_state.layout = Layout::ColorOptions,
+        AppMsg::ChangeToFracLayout => self.app_state.layout = Layout::FracOptions,
+      },
     }
   }
 
   fn view(&mut self) -> Element<Message> {
-    let image_handle = if self.image_state.args.better_resize {
-      let pix_size = self.frac_state.args.field.pixel_size;
-      let frac_image = 
-        color::resize_fractal_image(&self.image_state.image, pix_size, 1000);
-      image::Handle::from_pixels(1000, 1000, frac_image)
-    } else {
-      let pix_size = self.frac_state.args.field.pixel_size;
-      let frac_image = self.image_state.image.clone();
-      image::Handle::from_pixels(pix_size as u32, pix_size as u32, frac_image)
-    };
+    let image_handle = image::Handle::from_pixels(1000, 1000, self.image_state.image.clone());
     let image = Image::new(image_handle)
       .width(Length::Units(1000))
       .height(Length::Units(1000));
-    let basic_buttons = 
-      self.basic_buttons.view(self.frac_state.args, self.log_increment_size);
+    let layout = match self.app_state.layout {
+      Layout::FracOptions => self
+        .frac_layout
+        .view(self.frac_state.args, self.app_state.log_increment_size)
+        .width(Length::Units(500)),
+      Layout::ColorOptions => self
+        .color_layout
+        .view(self.frac_state.args)
+        .width(Length::Units(500)),
+    };
+    let layout_buttons = Row::new()
+      .padding(10)
+      .spacing(10)
+      .width(Length::Units(500))
+      .push(
+        button(&mut self.to_frac_layout_button, "Fractal Options")
+          .on_press(Message::App(AppMsg::ChangeToFracLayout))
+          .style(ButtonStyle::Primary),
+      )
+      .push(
+        button(&mut self.to_color_layout_button, "Color Options")
+          .on_press(Message::App(AppMsg::ChangeToColorLayout))
+          .style(ButtonStyle::Primary),
+      );
     Row::new()
       .padding(10)
       .align_items(Align::Center)
-      .push(basic_buttons.width(Length::Units(500)))
+      .push(
+        Column::new()
+          .align_items(Align::Start)
+          .padding(10)
+          .spacing(10)
+          .push(layout_buttons)
+          .push(layout),
+      )
       .push(Column::new().padding(10).spacing(10).push(image))
       .into()
   }
 }
 
-// Basic Buttons
+// -----------------------------------------------------------------------------
+// Frac Layout
+// -----------------------------------------------------------------------------
 
-impl<'a> BasicButtons {
-  fn view(
-    &'a mut self,
-    frac_args: FracArgs,
-    log_increment_size: f64,
-  ) -> Column<'a, Message> {
+impl<'a> FracLayout {
+  fn view(&'a mut self, frac_args: FracArgs, log_increment_size: f64) -> Column<'a, Message> {
     let row_space = 10;
     let row_pad = 10;
-
-    let button = |state, label, message| {
-      Button::new(
-        state,
-        Text::new(label)
-          .width(Length::Fill)
-          .horizontal_alignment(HorizontalAlignment::Center)
-          .size(24),
-      )
-      .width(Length::Fill)
-      .padding(8)
-      .on_press(message)
-    };
 
     Column::new()
       .padding(10)
       .spacing(10)
       .push(self.navigation_buttons.view())
-      .push(self.image_adjustment_buttons.view())
-      .push(
-        self.fractal_adjustment_buttons.view(
-          frac_args.iteration_style,
-          frac_args.iterator_kind,
-          log_increment_size
-        )
-      )
-      .push(Row::new().padding(row_pad).spacing(row_space).push(button(
-        &mut self.change_color_button,
-        "Change Color",
-        Message::Image(ImageMessage::ChangeColor),
-      )))
+      .push(self.fractal_adjustment_buttons.view(
+        frac_args.iteration_style,
+        frac_args.iterator_kind,
+        log_increment_size,
+      ))
       .push(
         Row::new()
           .padding(row_pad)
@@ -323,19 +410,6 @@ impl<'a> NavigationButtons {
     let row_space = 10;
     let row_pad = 10;
 
-    let button = |state, label, message| {
-      Button::new(
-        state,
-        Text::new(label)
-          .width(Length::Fill)
-          .horizontal_alignment(HorizontalAlignment::Center)
-          .size(24),
-      )
-      .width(Length::Fill)
-      .padding(8)
-      .on_press(message)
-    };
-
     let buttons = Column::new()
       .padding(10)
       .spacing(10)
@@ -344,75 +418,18 @@ impl<'a> NavigationButtons {
         Row::new()
           .padding(row_pad)
           .spacing(row_space)
-          .push(button(
-            &mut self.zoom_in_button,
-            "+",
-            Message::Frac(FracMessage::ZoomIn),
-          ))
-          .push(button(
-            &mut self.zoom_out_button,
-            "-",
-            Message::Frac(FracMessage::ZoomOut),
-          )),
+          .push(button(&mut self.zoom_in_button, "+").on_press(Message::Frac(FracMsg::ZoomIn)))
+          .push(button(&mut self.zoom_out_button, "-").on_press(Message::Frac(FracMsg::ZoomOut))),
       )
       .push(
         Row::new()
           .padding(row_pad)
           .spacing(row_space)
-          .push(button(
-            &mut self.go_left_button,
-            "◄",
-            Message::Frac(FracMessage::GoLeft),
-          ))
-          .push(button(
-            &mut self.go_up_button,
-            "▲",
-            Message::Frac(FracMessage::GoUp),
-          ))
-          .push(button(
-            &mut self.go_down_button,
-            "▼",
-            Message::Frac(FracMessage::GoDown),
-          ))
-          .push(button(
-            &mut self.go_right_button,
-            "►",
-            Message::Frac(FracMessage::GoRight),
-          )),
+          .push(button(&mut self.go_left_button, "◄").on_press(Message::Frac(FracMsg::GoLeft)))
+          .push(button(&mut self.go_up_button, "▲").on_press(Message::Frac(FracMsg::GoUp)))
+          .push(button(&mut self.go_down_button, "▼").on_press(Message::Frac(FracMsg::GoDown)))
+          .push(button(&mut self.go_right_button, "►").on_press(Message::Frac(FracMsg::GoRight))),
       );
-    Container::new(buttons).into()
-  }
-}
-
-impl<'a> ImageAdjustmentButtons {
-  fn view(&mut self) -> Element<Message> {
-    let button = |state, label, message| {
-      Button::new(
-        state,
-        Text::new(label)
-          .width(Length::Fill)
-          .horizontal_alignment(HorizontalAlignment::Center)
-          .size(24),
-      )
-      .width(Length::Fill)
-      .padding(8)
-      .on_press(message)
-    };
-
-    let buttons = Row::new()
-      .padding(10)
-      .spacing(10)
-      .align_items(Align::Center)
-      .push(button(
-        &mut self.pixel_up_button,
-        "More Detailed",
-        Message::Frac(FracMessage::PixelUp),
-      ))
-      .push(button(
-        &mut self.pixel_down_button,
-        "Less Detailed",
-        Message::Frac(FracMessage::PixelDown),
-      ));
     Container::new(buttons).into()
   }
 }
@@ -427,19 +444,6 @@ impl<'a> FractalAdjustmentButtons {
     let row_space = 10;
     let row_pad = 10;
 
-    let button = |state, label, message| {
-      Button::new(
-        state,
-        Text::new(label)
-          .width(Length::Fill)
-          .horizontal_alignment(HorizontalAlignment::Center)
-          .size(24),
-      )
-      .width(Length::Fill)
-      .padding(8)
-      .on_press(message)
-    };
-
     let buttons = Column::new()
       .padding(10)
       .spacing(10)
@@ -448,84 +452,161 @@ impl<'a> FractalAdjustmentButtons {
         Row::new()
           .padding(row_pad)
           .spacing(row_space)
-          .push(button(
-            &mut self.steps_up_button,
-            "More Steps",
-            Message::Frac(FracMessage::StepsUp),
-          ))
-          .push(button(
-            &mut self.steps_down_button,
-            "Less Steps",
-            Message::Frac(FracMessage::StepsDown),
-          )),
+          .push(
+            PickList::new(
+              &mut self.change_iteration_list,
+              definitions::ALL_ITERATIONS,
+              Some(iteration),
+              |kind| Message::Frac(FracMsg::IterationPicked(kind)),
+            )
+            .padding(8)
+            .text_size(24),
+          )
+          .push(
+            PickList::new(
+              &mut self.change_iterator_list,
+              definitions::ALL_ITERATORS,
+              Some(iterator),
+              |kind| Message::Frac(FracMsg::IteratorPicked(kind)),
+            )
+            .padding(8)
+            .text_size(24),
+          ),
       )
       .push(
         Row::new()
           .padding(row_pad)
           .spacing(row_space)
-          .push(PickList::new(
-            &mut self.change_iteration_list,
-            definitions::ALL_ITERATIONS,
-            Some(iteration),
-            |kind| Message::Frac(FracMessage::IterationPicked(kind)),
-            )
-            .padding(8)
-            .text_size(24)
+          .push(Slider::new(
+            // increases go by 1/4 hence all the mess with 4.
+            &mut self.increment_slider,
+            -124.0..=4.0,
+            (log_increment_size * 4.) as f32,
+            |val| Message::App(AppMsg::ChangeIncrementSize(val / 4.)),
+          ))
+          .push(
+            Text::new(format!(
+              "increment: {:.10}",
+              (2 as f64).powf(log_increment_size)
+            ))
+            .size(24),
+          ),
+      )
+      .push(
+        Row::new()
+          .padding(row_pad)
+          .spacing(row_space)
+          .push(
+            button(&mut self.re_up_button, "re+")
+              .on_press(Message::Frac(FracMsg::ReUp(log_increment_size))),
           )
-          .push(PickList::new(
-            &mut self.change_iterator_list,
-            definitions::ALL_ITERATORS,
-            Some(iterator),
-            |kind| Message::Frac(FracMessage::IteratorPicked(kind)),
+          .push(
+            button(&mut self.re_down_button, "re-")
+              .on_press(Message::Frac(FracMsg::ReDown(log_increment_size))),
           )
-          .padding(8)
-          .text_size(24)
+          .push(
+            button(&mut self.im_up_button, "im+")
+              .on_press(Message::Frac(FracMsg::ImUp(log_increment_size))),
+          )
+          .push(
+            button(&mut self.im_down_button, "im-")
+              .on_press(Message::Frac(FracMsg::ImDown(log_increment_size))),
+          ),
+      );
+    Container::new(buttons).into()
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Color Layout
+// -----------------------------------------------------------------------------
+
+impl<'a> ColorLayout {
+  fn view(&'a mut self, frac_args: FracArgs) -> Column<'a, Message> {
+    let row_space = 10;
+    let row_pad = 10;
+
+    Column::new()
+      .padding(10)
+      .spacing(10)
+      .push(self.image_adjustment_buttons.view())
+      .push(
+        Row::new()
+          .padding(row_pad)
+          .spacing(row_space)
+          .push(
+            button(&mut self.steps_up_button, "More Steps")
+              .on_press(Message::Frac(FracMsg::StepsUp)),
+          )
+          .push(
+            button(&mut self.steps_down_button, "Less Steps")
+              .on_press(Message::Frac(FracMsg::StepsDown)),
+          ),
+      )
+      .push(
+        Row::new().padding(row_pad).spacing(row_space).push(
+          button(&mut self.change_color_button, "Change Color")
+            .on_press(Message::Image(ImgMsg::ChangeColor)),
         ),
       )
       .push(
         Row::new()
           .padding(row_pad)
           .spacing(row_space)
-          .push(
-            Slider::new(
-                // increases go by 1/4 hence all the mess with 4.
-                &mut self.increment_slider,
-                -124.0..=4.0,
-                (log_increment_size*4.) as f32,
-                |val| Message::Frac(FracMessage::ChangeIncrementSize(val/4.)),
-            )
-          )
-          .push(
-            Text::new(format!(
-              "increment: {:.10}", (2 as f64).powf(log_increment_size)))
-            .size(24)
-          )
+          .push(Text::new(format!(
+            "Constant: {:.10} + {:.10} i",
+            frac_args.c_re, frac_args.c_im
+          ))),
       )
       .push(
         Row::new()
           .padding(row_pad)
           .spacing(row_space)
-          .push(button(
-            &mut self.re_up_button,
-            "re+",
-            Message::Frac(FracMessage::ReUp(log_increment_size)),
-          ))
-          .push(button(
-            &mut self.re_down_button,
-            "re-",
-            Message::Frac(FracMessage::ReDown(log_increment_size)),
-          ))
-          .push(button(
-            &mut self.im_up_button,
-            "im+",
-            Message::Frac(FracMessage::ImUp(log_increment_size)),
-          ))
-          .push(button(
-            &mut self.im_down_button,
-            "im-",
-            Message::Frac(FracMessage::ImDown(log_increment_size)),
-          )),
+          .push(Text::new(format!(
+            "Center: {:.10} + {:.10} i",
+            frac_args.field.center_im, frac_args.field.center_re
+          ))),
+      )
+      .push(
+        Row::new()
+          .padding(row_pad)
+          .spacing(row_space)
+          .push(Text::new(format!("Radius: {:.10}", frac_args.field.radius))),
+      )
+      .push(
+        Row::new()
+          .padding(row_pad)
+          .spacing(row_space)
+          .push(Text::new(format!("Steps: {}", frac_args.steps))),
+      )
+      .push(
+        Row::new()
+          .padding(row_pad)
+          .spacing(row_space)
+          .push(Text::new(format!(
+            "Pixel width: {}",
+            frac_args.field.pixel_size
+          ))),
+      )
+  }
+}
+
+impl<'a> ImageAdjustmentButtons {
+  fn view(&mut self) -> Element<Message> {
+    let buttons = Row::new()
+      .padding(10)
+      .spacing(10)
+      .align_items(Align::Center)
+      .push(
+        button(&mut self.pixel_up_button, "More Detailed")
+          .on_press(Message::Frac(FracMsg::PixelUp)),
+      )
+      .push(
+        button(&mut self.pixel_down_button, "Less Detailed")
+          .on_press(Message::Frac(FracMsg::PixelDown)),
       );
     Container::new(buttons).into()
   }
 }
+
+

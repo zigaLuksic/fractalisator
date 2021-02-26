@@ -65,13 +65,14 @@ pub static ALL_ITERATIONS : &[IterationStyle] = &[
 
 /// Describes the complex function used in iteration when calculating fractals.
 #[derive (Clone, Copy, Debug, PartialEq, Eq)]
-pub enum IteratorKind { Square, Cube, Ship }
+pub enum IteratorKind { Square, Cube, Inverse, Ship }
 
 impl std::fmt::Display for IteratorKind {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     write!(f, "{}", match self {
      IteratorKind::Square => "z ^ 2", 
      IteratorKind::Cube => "z ^ 3", 
+     IteratorKind::Inverse => "z ^ -2", 
      IteratorKind::Ship => "(|a| + i|b|) ^ 2", 
     })
   }
@@ -80,6 +81,7 @@ impl std::fmt::Display for IteratorKind {
 pub static ALL_ITERATORS : &[IteratorKind] = &[
   IteratorKind::Square,
   IteratorKind::Cube,
+  IteratorKind::Inverse,
   IteratorKind::Ship,
   ];
 
@@ -105,7 +107,7 @@ pub struct Gradient {
 }
 
 // Color Presets (These might be only temporarily here)
-
+#[derive (Clone, Copy)]
 pub enum GradientPreset { Azul, Svarog, Emperor, Gaia }
 
 impl Gradient {
@@ -151,18 +153,21 @@ impl Gradient {
     Gradient {
       start_color : (0, 0, 0, 255),
       peaks : vec!(
-        ColorPeak{bgra: (80, 80, 80, 255), at: 0.1},
-        ColorPeak{bgra: (140, 180, 60, 255), at: 0.5},
-        ColorPeak{bgra: (110, 230, 100, 255), at: 0.7},
-        ColorPeak{bgra: (50, 210, 250, 255), at: 0.9},
+        ColorPeak{bgra: (60, 50, 50, 255), at: 0.1},
+        ColorPeak{bgra: (180, 140, 60, 255), at: 0.5},
+        ColorPeak{bgra: (210, 200, 100, 255), at: 0.7},
+        ColorPeak{bgra: (150, 230, 250, 255), at: 0.9},
         ),
       end_color : (255, 255, 255, 255),
       smooth : true,
     }}
 }
 
+
+pub static DEFAULT_GRADIENT_PRESET : GradientPreset = GradientPreset::Gaia;
+
 impl Default for Gradient {
-    fn default() -> Self { Gradient::azul_gradient() }
+    fn default() -> Self { Gradient::gaia_gradient() }
   }
 
 //==============================================================================
@@ -196,7 +201,7 @@ impl Default for FracArgs {
       c_im  : 0.,
       steps : 256, 
       iter_bound      : 10., 
-      iteration_style : IterationStyle::Mandelbrot,
+      iteration_style : IterationStyle::Julia,
       iterator_kind   : IteratorKind::Square,
     }
   }
