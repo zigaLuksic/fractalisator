@@ -1,12 +1,14 @@
 //==============================================================================
 // Open crates and libraries
 //==============================================================================
+use image as imagetool;
+
 use iced::{button, Button};
 use iced::{image, Image, Text};
 use iced::{pick_list, PickList};
 use iced::{slider, Slider};
 use iced::{Align, Column, Container, Element, Row, Sandbox};
-use iced::{HorizontalAlignment, Length, Color, Vector, Background};
+use iced::{Background, Color, HorizontalAlignment, Length, Vector};
 
 use fractal::color;
 use fractal::definitions;
@@ -28,15 +30,36 @@ pub enum Layout {
 //==============================================================================
 // States of application parts
 //==============================================================================
-#[derive(Default)]
 pub struct MainWindow {
   frac_state: FractalState,
   image_state: ImageState,
+  displayed_image: Vec<u8>,
   app_state: AppState,
   frac_layout: FracLayout,
   color_layout: ColorLayout,
+  save_button: button::State,
   to_frac_layout_button: button::State,
   to_color_layout_button: button::State,
+}
+
+impl Default for MainWindow {
+  fn default() -> Self {
+    let default_frac_state = FractalState::default();
+    let default_image_state = ImageState::default();
+    let pix_size = default_frac_state.args.field.pixel_size;
+    let displayed_image = color::resize_fractal_image(&default_image_state.image.clone(), pix_size, 1000);
+    MainWindow {
+      frac_state: default_frac_state,
+      image_state: default_image_state,
+      displayed_image: displayed_image,
+      app_state: AppState::default(),
+      frac_layout: FracLayout::default(),
+      color_layout: ColorLayout::default(),
+      save_button: button::State::default(),
+      to_frac_layout_button: button::State::default(),
+      to_color_layout_button: button::State::default(),
+    }
+  }
 }
 
 pub struct AppState {
@@ -125,6 +148,7 @@ pub enum ImgMsg {
 
 #[derive(Debug, Clone, Copy)]
 pub enum AppMsg {
+  SaveImage,
   ChangeToFracLayout,
   ChangeToColorLayout,
   ChangeIncrementSize(f32),
@@ -153,7 +177,6 @@ fn button<'a, Message: Clone>(state: &'a mut button::State, label: &str) -> Butt
   .width(Length::Fill)
 }
 
-
 pub enum ButtonStyle {
   Primary,
   // Secondary,
@@ -161,24 +184,24 @@ pub enum ButtonStyle {
 
 impl button::StyleSheet for ButtonStyle {
   fn active(&self) -> button::Style {
-      button::Style {
-          background: Some(Background::Color(match self {
-              ButtonStyle::Primary => Color::from_rgb(0.11, 0.42, 0.87),
-              // Button::Secondary => Color::from_rgb(0.5, 0.5, 0.5),
-          })),
-          border_radius: 12.0,
-          shadow_offset: Vector::new(1.0, 1.0),
-          text_color: Color::from_rgb8(0xEE, 0xEE, 0xEE),
-          ..button::Style::default()
-      }
+    button::Style {
+      background: Some(Background::Color(match self {
+        ButtonStyle::Primary => Color::from_rgb(0.11, 0.42, 0.87),
+        // Button::Secondary => Color::from_rgb(0.5, 0.5, 0.5),
+      })),
+      border_radius: 12.0,
+      shadow_offset: Vector::new(1.0, 1.0),
+      text_color: Color::from_rgb8(0xEE, 0xEE, 0xEE),
+      ..button::Style::default()
+    }
   }
 
   fn hovered(&self) -> button::Style {
-      button::Style {
-          text_color: Color::WHITE,
-          shadow_offset: Vector::new(1.0, 2.0),
-          ..self.active()
-      }
+    button::Style {
+      text_color: Color::WHITE,
+      shadow_offset: Vector::new(1.0, 2.0),
+      ..self.active()
+    }
   }
 }
 
@@ -200,12 +223,9 @@ impl MainWindow {
     let frac = &self.frac_state.fractal;
     let gradient = self.image_state.args.gradient.clone();
     let image = color::color_fractal(frac, self.frac_state.args.steps, gradient);
-    if self.image_state.args.better_resize {
-      let pix_size = self.frac_state.args.field.pixel_size;
-      self.image_state.image = color::resize_fractal_image(&image, pix_size, 1000);
-    } else {
-      self.image_state.image = image.clone();
-    }
+    self.image_state.image = image.clone();
+    let pix_size = self.frac_state.args.field.pixel_size;
+    self.displayed_image = color::resize_fractal_image(&image, pix_size, 1000);
   }
 }
 
@@ -273,19 +293,19 @@ impl Sandbox for MainWindow {
         match im {
           ImgMsg::ChangeColor => match self.image_state.current_preset {
             GradientPreset::Azul => {
-              self.image_state.args.gradient = Gradient::svarog_gradient();
+              self.image_state.args.gradient = Gradient::svarog();
               self.image_state.current_preset = GradientPreset::Svarog
             }
             GradientPreset::Svarog => {
-              self.image_state.args.gradient = Gradient::emperor_gradient();
+              self.image_state.args.gradient = Gradient::emperor();
               self.image_state.current_preset = GradientPreset::Emperor
             }
             GradientPreset::Emperor => {
-              self.image_state.args.gradient = Gradient::gaia_gradient();
+              self.image_state.args.gradient = Gradient::gaia();
               self.image_state.current_preset = GradientPreset::Gaia
             }
             GradientPreset::Gaia => {
-              self.image_state.args.gradient = Gradient::azul_gradient();
+              self.image_state.args.gradient = Gradient::azul();
               self.image_state.current_preset = GradientPreset::Azul
             }
           },
@@ -296,12 +316,22 @@ impl Sandbox for MainWindow {
         AppMsg::ChangeIncrementSize(val) => self.app_state.log_increment_size = val as f64,
         AppMsg::ChangeToColorLayout => self.app_state.layout = Layout::ColorOptions,
         AppMsg::ChangeToFracLayout => self.app_state.layout = Layout::FracOptions,
+        AppMsg::SaveImage => {
+          imagetool::ImageBuffer::<imagetool::Rgba<u8>, Vec<u8>>::from_vec(
+            self.frac_state.args.field.pixel_size as u32,
+            self.frac_state.args.field.pixel_size as u32,
+            color::bgra_to_rgba(&self.image_state.image),
+          )
+          .unwrap()
+          .save("fractal_image.png")
+          .unwrap()
+        },
       },
     }
   }
 
   fn view(&mut self) -> Element<Message> {
-    let image_handle = image::Handle::from_pixels(1000, 1000, self.image_state.image.clone());
+    let image_handle = image::Handle::from_pixels(1000, 1000, self.displayed_image.clone());
     let image = Image::new(image_handle)
       .width(Length::Units(1000))
       .height(Length::Units(1000));
@@ -329,6 +359,15 @@ impl Sandbox for MainWindow {
           .on_press(Message::App(AppMsg::ChangeToColorLayout))
           .style(ButtonStyle::Primary),
       );
+    let save_button = Row::new()
+      .padding(10)
+      .spacing(10)
+      .width(Length::Units(500))
+      .push(
+        button(&mut self.save_button, "Save Fractal")
+          .on_press(Message::App(AppMsg::SaveImage))
+          .style(ButtonStyle::Primary),
+      );
     Row::new()
       .padding(10)
       .align_items(Align::Center)
@@ -338,7 +377,8 @@ impl Sandbox for MainWindow {
           .padding(10)
           .spacing(10)
           .push(layout_buttons)
-          .push(layout),
+          .push(layout)
+          .push(save_button),
       )
       .push(Column::new().padding(10).spacing(10).push(image))
       .into()
@@ -450,8 +490,8 @@ impl<'a> FractalAdjustmentButtons {
       .align_items(Align::Center)
       .push(
         Row::new()
-          .padding(row_pad)
-          .spacing(row_space)
+          .padding(10)
+          .spacing(10)
           .push(
             PickList::new(
               &mut self.change_iteration_list,
@@ -608,5 +648,3 @@ impl<'a> ImageAdjustmentButtons {
     Container::new(buttons).into()
   }
 }
-
-

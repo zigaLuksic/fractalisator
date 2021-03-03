@@ -112,7 +112,7 @@ pub enum GradientPreset { Azul, Svarog, Emperor, Gaia }
 
 impl Gradient {
 
-  pub fn azul_gradient() -> Gradient {
+  pub fn azul() -> Gradient {
     Gradient {
       start_color : (0, 0, 0, 255),
       peaks : vec!(
@@ -123,7 +123,7 @@ impl Gradient {
       smooth : true,
     }}
 
-  pub fn svarog_gradient() -> Gradient {
+  pub fn svarog() -> Gradient {
     Gradient {
       start_color : (0, 0, 0, 255),
       peaks : vec!(
@@ -136,7 +136,7 @@ impl Gradient {
       smooth : true,
     }}
 
-  pub fn emperor_gradient() -> Gradient {
+  pub fn emperor() -> Gradient {
     Gradient {
       start_color : (0, 0, 0, 255),
       peaks : vec!(
@@ -149,7 +149,7 @@ impl Gradient {
       smooth : true,
     }}
 
-  pub fn gaia_gradient() -> Gradient {
+  pub fn gaia() -> Gradient {
     Gradient {
       start_color : (0, 0, 0, 255),
       peaks : vec!(
@@ -214,14 +214,12 @@ impl Default for FracArgs {
 #[derive(Clone)]
 pub struct ImageArgs {
   pub gradient : Gradient,
-  pub better_resize : bool,
 }
 
 impl Default for ImageArgs {
   fn default() -> Self {
     ImageArgs {
       gradient : Gradient::default(),
-      better_resize : true,
     }
   }
 }

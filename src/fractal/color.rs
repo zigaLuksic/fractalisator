@@ -119,3 +119,22 @@ pub fn resize_fractal_image(
 
   resized
 }
+
+
+pub fn bgra_to_rgba(image_vec : &Vec<u8>) -> Vec<u8> {
+  let length = image_vec.len();
+  let mut bitflipped = Vec::with_capacity(length);
+  let steps = length / 4;
+
+  for i in 0..steps {
+      bitflipped.extend_from_slice(&[
+              image_vec[(4*i)+2],
+              image_vec[(4*i)+1],
+              image_vec[(4*i)],
+              image_vec[(4*i)+3],
+          ]);
+      }
+
+  bitflipped
+}
+
